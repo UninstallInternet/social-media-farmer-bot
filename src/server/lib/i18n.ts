@@ -124,6 +124,36 @@ type TranslationKeys = {
   "templates.defaultHashtags": string;
   "templates.noTemplates": string;
 
+  // Groups
+  "groups.title": string;
+  "groups.createGroup": string;
+  "groups.name": string;
+  "groups.color": string;
+  "groups.selectAccounts": string;
+  "groups.noGroups": string;
+  "groups.members": string;
+  "groups.assignToGroup": string;
+  "groups.selectGroup": string;
+  "groups.allAccounts": string;
+
+  // Calendar
+  "calendar.title": string;
+  "calendar.today": string;
+  "calendar.month": string;
+  "calendar.week": string;
+  "calendar.addPost": string;
+  "calendar.dragToSchedule": string;
+  "calendar.noPostsThisDay": string;
+
+  // Import (additional)
+  "import.schemaTitle": string;
+  "import.schemaDescription": string;
+  "import.requiredColumns": string;
+  "import.optionalColumns": string;
+  "import.exampleRow": string;
+  "import.uploadMedia": string;
+  "import.mediaNote": string;
+
   // Language
   "language.switch": string;
   "language.en": string;
@@ -244,6 +274,33 @@ const translations: Record<Locale, TranslationKeys> = {
     "templates.defaultHashtags": "Default Hashtags",
     "templates.noTemplates": "No templates yet. Create your first template.",
 
+    "groups.title": "Groups",
+    "groups.createGroup": "Create Group",
+    "groups.name": "Group Name",
+    "groups.color": "Color",
+    "groups.selectAccounts": "Select accounts for this group",
+    "groups.noGroups": "No groups yet. Create a group to manage multiple accounts together.",
+    "groups.members": "Members",
+    "groups.assignToGroup": "Post to Group",
+    "groups.selectGroup": "Select a group",
+    "groups.allAccounts": "All Accounts",
+
+    "calendar.title": "Calendar",
+    "calendar.today": "Today",
+    "calendar.month": "Month",
+    "calendar.week": "Week",
+    "calendar.addPost": "Click to add post",
+    "calendar.dragToSchedule": "Click a day to schedule a post",
+    "calendar.noPostsThisDay": "No posts this day",
+
+    "import.schemaTitle": "CSV/Excel Format Guide",
+    "import.schemaDescription": "Your file must include these columns. Download the template for a ready-to-fill example.",
+    "import.requiredColumns": "Required Columns",
+    "import.optionalColumns": "Optional Columns",
+    "import.exampleRow": "Example Row",
+    "import.uploadMedia": "Upload Media Files",
+    "import.mediaNote": "Upload all media files referenced in your CSV. Filenames must match exactly.",
+
     "language.switch": "Language",
     "language.en": "English",
     "language.es": "Spanish",
@@ -361,6 +418,33 @@ const translations: Record<Locale, TranslationKeys> = {
     "templates.captionTemplate": "Plantilla de Descripcion",
     "templates.defaultHashtags": "Hashtags Predeterminados",
     "templates.noTemplates": "No hay plantillas. Crea tu primera plantilla.",
+
+    "groups.title": "Grupos",
+    "groups.createGroup": "Crear Grupo",
+    "groups.name": "Nombre del Grupo",
+    "groups.color": "Color",
+    "groups.selectAccounts": "Selecciona cuentas para este grupo",
+    "groups.noGroups": "No hay grupos. Crea un grupo para gestionar varias cuentas juntas.",
+    "groups.members": "Miembros",
+    "groups.assignToGroup": "Publicar en Grupo",
+    "groups.selectGroup": "Selecciona un grupo",
+    "groups.allAccounts": "Todas las Cuentas",
+
+    "calendar.title": "Calendario",
+    "calendar.today": "Hoy",
+    "calendar.month": "Mes",
+    "calendar.week": "Semana",
+    "calendar.addPost": "Clic para agregar publicacion",
+    "calendar.dragToSchedule": "Haz clic en un dia para programar",
+    "calendar.noPostsThisDay": "Sin publicaciones este dia",
+
+    "import.schemaTitle": "Guia de Formato CSV/Excel",
+    "import.schemaDescription": "Tu archivo debe incluir estas columnas. Descarga la plantilla para un ejemplo listo para llenar.",
+    "import.requiredColumns": "Columnas Requeridas",
+    "import.optionalColumns": "Columnas Opcionales",
+    "import.exampleRow": "Fila de Ejemplo",
+    "import.uploadMedia": "Subir Archivos de Medios",
+    "import.mediaNote": "Sube todos los archivos de medios referenciados en tu CSV. Los nombres deben coincidir exactamente.",
 
     "language.switch": "Idioma",
     "language.en": "Ingles",

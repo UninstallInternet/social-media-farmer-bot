@@ -80,6 +80,7 @@ export const postsRouter = router({
         hashtags: z.string().optional(),
         mediaType: z.enum(["image", "carousel", "reel"]),
         scheduledAt: z.string().datetime().optional(),
+        groupId: z.string().uuid().optional(),
         media: z.array(
           z.object({
             mediaUrl: z.string().url(),
@@ -97,6 +98,7 @@ export const postsRouter = router({
         .insert(posts)
         .values({
           accountId: input.accountId,
+          groupId: input.groupId,
           caption: input.caption,
           hashtags: input.hashtags,
           mediaType: input.mediaType,

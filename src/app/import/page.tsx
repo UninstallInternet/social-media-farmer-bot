@@ -16,11 +16,25 @@ interface ParsedRow {
   scheduleDate: string;
   scheduleTime: string;
   altText?: string;
+  groupName?: string;
   valid: boolean;
   errors: string[];
 }
 
-type Step = "upload" | "validate" | "preview" | "confirm";
+const REQUIRED_COLUMNS = [
+  { name: "account_username", description: "Instagram username (without @)", example: "myaccount" },
+  { name: "media_type", description: "Type of post: image, carousel, or reel", example: "image" },
+  { name: "schedule_date", description: "Date to publish (YYYY-MM-DD)", example: "2026-04-15" },
+  { name: "schedule_time", description: "Time to publish (HH:MM, 24h format)", example: "09:00" },
+];
+
+const OPTIONAL_COLUMNS = [
+  { name: "caption", description: "Post caption text (max 2200 chars)", example: "Check this out!" },
+  { name: "hashtags", description: "Hashtags to append", example: "#trending #viral" },
+  { name: "media_files", description: "Filenames (semicolon-separated for carousel)", example: "photo1.jpg" },
+  { name: "alt_text", description: "Image alt text for accessibility", example: "Product photo" },
+  { name: "group_name", description: "Group to assign the post to", example: "Fashion" },
+];
 
 export default function ImportPage() {
   const { t } = useI18n();
@@ -28,7 +42,7 @@ export default function ImportPage() {
   const accounts = trpc.accounts.list.useQuery();
   const createPost = trpc.posts.create.useMutation();
 
-  const [step, setStep] = useState<Step>("upload");
+  const [step, setStep] = useState<"schema" | "upload" | "validate">("schema");
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
@@ -49,7 +63,6 @@ export default function ImportPage() {
       );
 
       const rows: ParsedRow[] = lines.slice(1).map((line, index) => {
-        // Simple CSV parsing (handles basic cases)
         const values = parseCSVLine(line);
         const row: Record<string, string> = {};
         headers.forEach((h, i) => {
@@ -72,6 +85,12 @@ export default function ImportPage() {
         const scheduleTime = row["schedule_time"] || "";
         if (!scheduleDate) errors.push("Missing schedule_date");
         if (!scheduleTime) errors.push("Missing schedule_time");
+        if (scheduleDate && !/^\d{4}-\d{2}-\d{2}$/.test(scheduleDate)) {
+          errors.push("schedule_date must be YYYY-MM-DD");
+        }
+        if (scheduleTime && !/^\d{2}:\d{2}$/.test(scheduleTime)) {
+          errors.push("schedule_time must be HH:MM");
+        }
 
         return {
           rowNumber: index + 2,
@@ -83,6 +102,7 @@ export default function ImportPage() {
           scheduleDate,
           scheduleTime,
           altText: row["alt_text"],
+          groupName: row["group_name"],
           valid: errors.length === 0,
           errors,
         };
@@ -111,29 +131,24 @@ export default function ImportPage() {
       if (!accountId) continue;
 
       try {
-        const scheduledAt = new Date(
-          `${row.scheduleDate}T${row.scheduleTime}`
-        ).toISOString();
-
-        // For now, media URLs would need to be pre-uploaded
-        // In a full implementation, we'd handle the media_files column
+        const scheduledAt = new Date(`${row.scheduleDate}T${row.scheduleTime}`).toISOString();
         await createPost.mutateAsync({
           accountId,
           caption: row.caption,
           hashtags: row.hashtags,
           mediaType: row.mediaType,
           scheduledAt,
-          media: [], // Media would be attached in a real implementation
+          media: [],
         });
-      } catch (error) {
-        // Continue importing other rows on individual failure
+      } catch {
+        // Continue on individual failure
       }
 
       setImportProgress(Math.round(((i + 1) / validRows.length) * 100));
     }
 
     setImporting(false);
-    router.push("/dashboard");
+    router.push("/calendar");
   }, [parsedRows, accounts.data, createPost, router]);
 
   const validCount = parsedRows.filter((r) => r.valid).length;
@@ -142,134 +157,231 @@ export default function ImportPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8 max-w-4xl">
+      <main className="flex-1 p-8 max-w-5xl">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">{t("import.title")}</h1>
-          <a
-            href="/templates/import-template.csv"
-            download
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
-          >
-            {t("import.downloadTemplate")}
-          </a>
         </div>
 
         {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-8">
-          {(["upload", "validate", "preview", "confirm"] as Step[]).map(
-            (s, i) => (
-              <div key={s} className="flex items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step === s
-                      ? "bg-blue-600 text-white"
-                      : parsedRows.length > 0 && i < ["upload", "validate", "preview", "confirm"].indexOf(step)
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-400"
-                  }`}
-                >
-                  {i + 1}
+        <div className="flex items-center gap-4 mb-8">
+          {[
+            { key: "schema", label: "1. Understand Format" },
+            { key: "upload", label: "2. Upload File" },
+            { key: "validate", label: "3. Review & Import" },
+          ].map((s, i) => {
+            const steps = ["schema", "upload", "validate"];
+            const currentIdx = steps.indexOf(step);
+            const isActive = step === s.key;
+            const isDone = i < currentIdx;
+
+            return (
+              <div key={s.key} className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  isActive
+                    ? "bg-blue-600 text-white"
+                    : isDone
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-100 text-gray-400"
+                }`}>
+                  {isDone ? "✓" : i + 1}
                 </div>
-                {i < 3 && (
-                  <div className="w-12 h-0.5 bg-gray-200 mx-1" />
-                )}
+                <span className={`text-sm font-medium ${isActive ? "text-gray-900" : "text-gray-400"}`}>
+                  {s.label}
+                </span>
+                {i < 2 && <div className="w-8 h-0.5 bg-gray-200" />}
               </div>
-            )
-          )}
+            );
+          })}
         </div>
 
-        {/* Upload Step */}
-        {step === "upload" && (
-          <div
-            className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-blue-400 transition-colors cursor-pointer bg-white"
-            onClick={() => {
-              const input = document.createElement("input");
-              input.type = "file";
-              input.accept = ".csv,.xlsx,.xls";
-              input.onchange = () => {
-                if (input.files?.[0]) handleFileUpload(input.files[0]);
-              };
-              input.click();
-            }}
-          >
-            <p className="text-lg text-gray-600">{t("import.uploadCsv")}</p>
-            <p className="text-sm text-gray-400 mt-2">CSV or Excel</p>
-          </div>
-        )}
+        {/* Step 1: Schema explanation */}
+        {step === "schema" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold mb-2">{t("import.schemaTitle")}</h2>
+              <p className="text-sm text-gray-500 mb-6">{t("import.schemaDescription")}</p>
 
-        {/* Validate Step */}
-        {step === "validate" && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex gap-4 mb-4">
-              <div className="px-3 py-1 bg-green-50 text-green-700 rounded-lg text-sm">
-                {t("import.validRows")}: {validCount}
+              {/* Required columns */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
+                  {t("import.requiredColumns")}
+                </h3>
+                <div className="grid gap-2">
+                  {REQUIRED_COLUMNS.map((col) => (
+                    <div key={col.name} className="flex items-start gap-4 p-3 bg-red-50 rounded-lg border border-red-100">
+                      <code className="text-sm font-mono font-bold text-red-700 min-w-[160px]">
+                        {col.name}
+                      </code>
+                      <span className="text-sm text-gray-600 flex-1">{col.description}</span>
+                      <code className="text-xs bg-white px-2 py-1 rounded text-gray-500 border">
+                        {col.example}
+                      </code>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="px-3 py-1 bg-red-50 text-red-700 rounded-lg text-sm">
-                {t("import.invalidRows")}: {invalidCount}
+
+              {/* Optional columns */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  {t("import.optionalColumns")}
+                </h3>
+                <div className="grid gap-2">
+                  {OPTIONAL_COLUMNS.map((col) => (
+                    <div key={col.name} className="flex items-start gap-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                      <code className="text-sm font-mono font-bold text-gray-700 min-w-[160px]">
+                        {col.name}
+                      </code>
+                      <span className="text-sm text-gray-600 flex-1">{col.description}</span>
+                      <code className="text-xs bg-white px-2 py-1 rounded text-gray-500 border">
+                        {col.example}
+                      </code>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Example CSV preview */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  {t("import.exampleRow")}
+                </h3>
+                <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                  <pre className="text-sm text-green-400 font-mono">
+{`account_username,caption,hashtags,media_files,media_type,schedule_date,schedule_time,alt_text
+myaccount,"Check out our latest!","#trending #new",photo1.jpg,image,2026-04-15,09:00,Product photo
+myaccount,"Behind the scenes","#bts",img1.jpg;img2.jpg;img3.jpg,carousel,2026-04-15,17:00,
+otheraccount,"Tutorial time","#howto",video.mp4,reel,2026-04-16,12:00,Tutorial video`}
+                  </pre>
+                </div>
               </div>
             </div>
 
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep("upload")}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+              >
+                {t("common.next")}: Upload File
+              </button>
+              <a
+                href="/templates/import-template.csv"
+                download
+                className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
+              >
+                {t("import.downloadTemplate")}
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Upload */}
+        {step === "upload" && (
+          <div className="space-y-4">
+            <div
+              className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-blue-400 transition-colors cursor-pointer bg-white"
+              onClick={() => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = ".csv,.xlsx,.xls";
+                input.onchange = () => {
+                  if (input.files?.[0]) handleFileUpload(input.files[0]);
+                };
+                input.click();
+              }}
+            >
+              <div className="text-4xl mb-3">📄</div>
+              <p className="text-lg text-gray-600">{t("import.uploadCsv")}</p>
+              <p className="text-sm text-gray-400 mt-2">CSV or Excel (.csv, .xlsx, .xls)</p>
+            </div>
+
+            <button
+              onClick={() => setStep("schema")}
+              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
+            >
+              &larr; {t("common.back")}
+            </button>
+          </div>
+        )}
+
+        {/* Step 3: Validate & Import */}
+        {step === "validate" && (
+          <div className="space-y-4">
+            {/* Summary */}
+            <div className="flex gap-4">
+              <div className="flex-1 bg-green-50 border border-green-200 rounded-xl p-4">
+                <p className="text-2xl font-bold text-green-700">{validCount}</p>
+                <p className="text-sm text-green-600">{t("import.validRows")}</p>
+              </div>
+              <div className="flex-1 bg-red-50 border border-red-200 rounded-xl p-4">
+                <p className="text-2xl font-bold text-red-700">{invalidCount}</p>
+                <p className="text-sm text-red-600">{t("import.invalidRows")}</p>
+              </div>
+            </div>
+
+            {/* Errors */}
             {invalidCount > 0 && (
-              <div className="mb-4">
-                <h3 className="text-sm font-medium text-red-600 mb-2">
+              <div className="bg-white rounded-xl border border-red-200 p-4">
+                <h3 className="text-sm font-semibold text-red-600 mb-2">
                   {t("import.validationErrors")}
                 </h3>
-                <div className="space-y-1">
+                <div className="space-y-1 max-h-40 overflow-y-auto">
                   {parsedRows
                     .filter((r) => !r.valid)
                     .map((r) => (
-                      <div
-                        key={r.rowNumber}
-                        className="text-sm text-red-600 bg-red-50 p-2 rounded"
-                      >
-                        Row {r.rowNumber}: {r.errors.join(", ")}
+                      <div key={r.rowNumber} className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                        <span className="font-medium">Row {r.rowNumber}:</span> {r.errors.join(", ")}
                       </div>
                     ))}
                 </div>
               </div>
             )}
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left">#</th>
-                    <th className="px-3 py-2 text-left">{t("posts.account")}</th>
-                    <th className="px-3 py-2 text-left">{t("posts.caption")}</th>
-                    <th className="px-3 py-2 text-left">{t("posts.mediaType")}</th>
-                    <th className="px-3 py-2 text-left">{t("posts.scheduleDate")}</th>
-                    <th className="px-3 py-2 text-left">{t("common.status")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {parsedRows.slice(0, 50).map((row) => (
-                    <tr
-                      key={row.rowNumber}
-                      className={row.valid ? "" : "bg-red-50"}
-                    >
-                      <td className="px-3 py-2">{row.rowNumber}</td>
-                      <td className="px-3 py-2">@{row.accountUsername}</td>
-                      <td className="px-3 py-2 truncate max-w-xs">
-                        {row.caption}
-                      </td>
-                      <td className="px-3 py-2">{row.mediaType}</td>
-                      <td className="px-3 py-2">
-                        {row.scheduleDate} {row.scheduleTime}
-                      </td>
-                      <td className="px-3 py-2">
-                        {row.valid ? (
-                          <span className="text-green-600">OK</span>
-                        ) : (
-                          <span className="text-red-600">Error</span>
-                        )}
-                      </td>
+            {/* Preview table */}
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">#</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">{t("posts.account")}</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">{t("posts.caption")}</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">{t("posts.mediaType")}</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">Schedule</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">{t("common.status")}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {parsedRows.slice(0, 50).map((row) => (
+                      <tr key={row.rowNumber} className={row.valid ? "" : "bg-red-50"}>
+                        <td className="px-4 py-3 text-gray-400">{row.rowNumber}</td>
+                        <td className="px-4 py-3 font-medium">@{row.accountUsername}</td>
+                        <td className="px-4 py-3 text-gray-600 truncate max-w-[200px]">{row.caption || "—"}</td>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">{row.mediaType}</span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">{row.scheduleDate} {row.scheduleTime}</td>
+                        <td className="px-4 py-3">
+                          {row.valid ? (
+                            <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">OK</span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">Error</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {parsedRows.length > 50 && (
+                <div className="px-4 py-2 bg-gray-50 text-sm text-gray-400 border-t">
+                  Showing 50 of {parsedRows.length} rows
+                </div>
+              )}
             </div>
 
-            <div className="mt-6 flex gap-3">
+            {/* Actions */}
+            <div className="flex gap-3">
               <button
                 onClick={handleImport}
                 disabled={validCount === 0 || importing}
@@ -280,10 +392,7 @@ export default function ImportPage() {
                   : `${t("import.confirmImport")} (${validCount} posts)`}
               </button>
               <button
-                onClick={() => {
-                  setParsedRows([]);
-                  setStep("upload");
-                }}
+                onClick={() => { setParsedRows([]); setStep("upload"); }}
                 className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
               >
                 {t("common.back")}

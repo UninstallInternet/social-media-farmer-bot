@@ -85,6 +85,7 @@ export const posts = pgTable("posts", {
   errorMessage: text("error_message"),
   retryCount: integer("retry_count").default(0).notNull(),
   batchId: uuid("batch_id").references(() => batches.id, { onDelete: "set null" }),
+  groupId: uuid("group_id").references(() => groups.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -99,6 +100,24 @@ export const postMedia = pgTable("post_media", {
   sortOrder: integer("sort_order").default(0).notNull(),
   altText: text("alt_text"),
   igContainerId: text("ig_container_id"),
+});
+
+// Groups — collections of accounts
+export const groups = pgTable("groups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  color: text("color").default("#3B82F6").notNull(), // hex color for calendar
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const groupMembers = pgTable("group_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  groupId: uuid("group_id")
+    .references(() => groups.id, { onDelete: "cascade" })
+    .notNull(),
+  accountId: uuid("account_id")
+    .references(() => accounts.id, { onDelete: "cascade" })
+    .notNull(),
 });
 
 export const templates = pgTable("templates", {
@@ -130,9 +149,25 @@ export const tokenRefreshLog = pgTable("token_refresh_log", {
 });
 
 // Relations
+export const groupsRelations = relations(groups, ({ many }) => ({
+  members: many(groupMembers),
+}));
+
+export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
+  group: one(groups, {
+    fields: [groupMembers.groupId],
+    references: [groups.id],
+  }),
+  account: one(accounts, {
+    fields: [groupMembers.accountId],
+    references: [accounts.id],
+  }),
+}));
+
 export const accountsRelations = relations(accounts, ({ many }) => ({
   posts: many(posts),
   tokenRefreshLogs: many(tokenRefreshLog),
+  groupMemberships: many(groupMembers),
 }));
 
 export const postsRelations = relations(posts, ({ one, many }) => ({
@@ -144,6 +179,10 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   batch: one(batches, {
     fields: [posts.batchId],
     references: [batches.id],
+  }),
+  group: one(groups, {
+    fields: [posts.groupId],
+    references: [groups.id],
   }),
 }));
 
@@ -173,3 +212,5 @@ export type NewPost = typeof posts.$inferInsert;
 export type PostMedia = typeof postMedia.$inferSelect;
 export type Template = typeof templates.$inferSelect;
 export type Batch = typeof batches.$inferSelect;
+export type Group = typeof groups.$inferSelect;
+export type GroupMember = typeof groupMembers.$inferSelect;

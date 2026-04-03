@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, Suspense } from "react";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { useI18n } from "@/lib/i18n-context";
 import { trpc } from "@/lib/trpc-client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface UploadedMedia {
   url: string;
@@ -13,19 +13,33 @@ interface UploadedMedia {
 }
 
 export default function NewPostPage() {
+  return (
+    <Suspense>
+      <NewPostContent />
+    </Suspense>
+  );
+}
+
+function NewPostContent() {
   const { t } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefillDate = searchParams.get("date") || "";
+
   const accounts = trpc.accounts.list.useQuery();
+  const groups = trpc.groups.list.useQuery();
   const createPost = trpc.posts.create.useMutation({
-    onSuccess: () => router.push("/dashboard"),
+    onSuccess: () => router.push("/calendar"),
   });
   const uploadFromGDrive = trpc.media.uploadFromGoogleDrive.useMutation();
 
+  const [postTo, setPostTo] = useState<"account" | "group">("account");
   const [accountId, setAccountId] = useState("");
+  const [groupId, setGroupId] = useState("");
   const [caption, setCaption] = useState("");
   const [hashtags, setHashtags] = useState("");
   const [mediaType, setMediaType] = useState<"image" | "carousel" | "reel">("image");
-  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleDate, setScheduleDate] = useState(prefillDate);
   const [scheduleTime, setScheduleTime] = useState("");
   const [uploadedMedia, setUploadedMedia] = useState<UploadedMedia[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -37,11 +51,7 @@ export default function NewPostPage() {
       const formData = new FormData();
       Array.from(files).forEach((file) => formData.append("files", file));
 
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
+      const response = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await response.json();
       if (data.error) throw new Error(data.error);
 
@@ -75,7 +85,8 @@ export default function NewPostPage() {
   }, [gdriveUrl, uploadFromGDrive]);
 
   const handleSubmit = () => {
-    if (!accountId) return alert(t("posts.selectAccount"));
+    if (postTo === "account" && !accountId) return alert(t("posts.selectAccount"));
+    if (postTo === "group" && !groupId) return alert(t("groups.selectGroup"));
     if (uploadedMedia.length === 0) return alert("Please add at least one media file");
 
     let scheduledAt: string | undefined;
@@ -83,229 +94,348 @@ export default function NewPostPage() {
       scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
     }
 
-    createPost.mutate({
-      accountId,
-      caption,
-      hashtags,
-      mediaType,
-      scheduledAt,
-      media: uploadedMedia.map((m, i) => ({
-        mediaUrl: m.url,
-        mediaType: m.mediaType,
-        sortOrder: i,
-      })),
-    });
+    const media = uploadedMedia.map((m, i) => ({
+      mediaUrl: m.url,
+      mediaType: m.mediaType,
+      sortOrder: i,
+    }));
+
+    if (postTo === "group" && groupId) {
+      // Post to all accounts in the group
+      const group = groups.data?.find((g) => g.id === groupId);
+      if (!group || group.accounts.length === 0) return alert("Group has no accounts");
+
+      // Create a post for each account in the group
+      Promise.all(
+        group.accounts.map((acc) =>
+          createPost.mutateAsync({
+            accountId: acc.id,
+            caption,
+            hashtags,
+            mediaType,
+            scheduledAt,
+            groupId,
+            media,
+          })
+        )
+      ).then(() => router.push("/calendar"));
+    } else {
+      createPost.mutate({
+        accountId,
+        caption,
+        hashtags,
+        mediaType,
+        scheduledAt,
+        media,
+      });
+    }
   };
 
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8 max-w-3xl">
+      <main className="flex-1 p-8">
         <h1 className="text-2xl font-bold mb-6">{t("posts.createPost")}</h1>
 
-        <div className="space-y-6 bg-white rounded-xl border border-gray-200 p-6">
-          {/* Account Selector */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("posts.account")}
-            </label>
-            <select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            >
-              <option value="">{t("posts.selectAccount")}</option>
-              {accounts.data?.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  @{acc.username}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Media Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("posts.mediaType")}
-            </label>
-            <div className="flex gap-2">
-              {(["image", "carousel", "reel"] as const).map((type) => (
+        <div className="grid grid-cols-5 gap-6">
+          {/* Form — left side */}
+          <div className="col-span-3 space-y-5 bg-white rounded-xl border border-gray-200 p-6">
+            {/* Post to: Account or Group */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Post to
+              </label>
+              <div className="flex gap-2 mb-3">
                 <button
-                  key={type}
-                  onClick={() => setMediaType(type)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    mediaType === type
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  onClick={() => setPostTo("account")}
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                    postTo === "account"
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
                   }`}
                 >
-                  {t(`posts.${type}`)}
+                  👤 Single Account
                 </button>
-              ))}
-            </div>
-          </div>
+                <button
+                  onClick={() => setPostTo("group")}
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                    postTo === "group"
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
+                >
+                  📁 {t("groups.assignToGroup")}
+                </button>
+              </div>
 
-          {/* Media Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t("media.upload")}
-            </label>
+              {postTo === "account" ? (
+                <select
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">{t("posts.selectAccount")}</option>
+                  {accounts.data?.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      @{acc.username} {acc.displayName ? `(${acc.displayName})` : ""}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <select
+                  value={groupId}
+                  onChange={(e) => setGroupId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">{t("groups.selectGroup")}</option>
+                  {groups.data?.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} ({g.memberCount} accounts)
+                    </option>
+                  ))}
+                </select>
+              )}
 
-            {/* Drag & drop area */}
-            <div
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (e.dataTransfer.files.length > 0) {
-                  handleFileUpload(e.dataTransfer.files);
-                }
-              }}
-              onClick={() => {
-                const input = document.createElement("input");
-                input.type = "file";
-                input.multiple = true;
-                input.accept = "image/jpeg,image/png,image/webp,video/mp4,video/quicktime";
-                input.onchange = () => {
-                  if (input.files) handleFileUpload(input.files);
-                };
-                input.click();
-              }}
-            >
-              <p className="text-gray-500">{t("media.dragDrop")}</p>
-              <p className="text-sm text-gray-400 mt-1">{t("media.orBrowse")}</p>
-              <p className="text-xs text-gray-400 mt-2">{t("media.supportedFormats")}</p>
-            </div>
-
-            {uploading && (
-              <p className="text-sm text-blue-600 mt-2">{t("common.loading")}</p>
-            )}
-
-            {/* Google Drive import */}
-            <div className="mt-4 flex gap-2">
-              <input
-                type="text"
-                value={gdriveUrl}
-                onChange={(e) => setGdriveUrl(e.target.value)}
-                placeholder={t("media.googleDriveUrl")}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              />
-              <button
-                onClick={handleGoogleDriveUpload}
-                disabled={!gdriveUrl || uploadFromGDrive.isPending}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50"
-              >
-                {t("media.googleDrive")}
-              </button>
+              {/* Show group members preview */}
+              {postTo === "group" && groupId && (
+                <div className="mt-2 flex items-center gap-1">
+                  <span className="text-xs text-gray-400 mr-1">Will post to:</span>
+                  {groups.data
+                    ?.find((g) => g.id === groupId)
+                    ?.accounts.map((acc) => (
+                      <span key={acc.id} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                        @{acc.username}
+                      </span>
+                    ))}
+                </div>
+              )}
             </div>
 
-            {/* Preview uploaded media */}
-            {uploadedMedia.length > 0 && (
-              <div className="mt-4 flex gap-2 flex-wrap">
-                {uploadedMedia.map((media, i) => (
-                  <div key={i} className="relative group">
-                    {media.mediaType === "image" ? (
-                      <img
-                        src={media.url}
-                        alt=""
-                        className="w-20 h-20 object-cover rounded-lg"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center text-2xl">
-                        🎥
-                      </div>
-                    )}
-                    <button
-                      onClick={() =>
-                        setUploadedMedia((prev) =>
-                          prev.filter((_, idx) => idx !== i)
-                        )
-                      }
-                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      x
-                    </button>
-                  </div>
+            {/* Media Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t("posts.mediaType")}
+              </label>
+              <div className="flex gap-2">
+                {(["image", "carousel", "reel"] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setMediaType(type)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      mediaType === type
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {type === "image" ? "🖼 " : type === "carousel" ? "🎠 " : "🎬 "}
+                    {t(`posts.${type}`)}
+                  </button>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Caption */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("posts.caption")}
-            </label>
-            <textarea
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder={t("posts.captionPlaceholder")}
-              rows={4}
-              maxLength={2200}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"
-            />
-            <p className="text-xs text-gray-400 text-right">
-              {caption.length}/2200
-            </p>
-          </div>
+            {/* Media Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t("media.upload")}
+              </label>
+              <div
+                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files);
+                }}
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.multiple = true;
+                  input.accept = "image/jpeg,image/png,image/webp,video/mp4,video/quicktime";
+                  input.onchange = () => { if (input.files) handleFileUpload(input.files); };
+                  input.click();
+                }}
+              >
+                <p className="text-gray-500">{t("media.dragDrop")}</p>
+                <p className="text-xs text-gray-400 mt-1">{t("media.supportedFormats")}</p>
+              </div>
 
-          {/* Hashtags */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("posts.hashtags")}
-            </label>
-            <input
-              type="text"
-              value={hashtags}
-              onChange={(e) => setHashtags(e.target.value)}
-              placeholder={t("posts.hashtagsPlaceholder")}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            />
-          </div>
+              {uploading && <p className="text-sm text-blue-600 mt-2">{t("common.loading")}</p>}
 
-          {/* Schedule */}
-          <div className="grid grid-cols-2 gap-4">
+              {/* Google Drive */}
+              <div className="mt-3 flex gap-2">
+                <input
+                  type="text"
+                  value={gdriveUrl}
+                  onChange={(e) => setGdriveUrl(e.target.value)}
+                  placeholder={t("media.googleDriveUrl")}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+                <button
+                  onClick={handleGoogleDriveUpload}
+                  disabled={!gdriveUrl || uploadFromGDrive.isPending}
+                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50"
+                >
+                  {t("media.googleDrive")}
+                </button>
+              </div>
+
+              {/* Media preview */}
+              {uploadedMedia.length > 0 && (
+                <div className="mt-3 flex gap-2 flex-wrap">
+                  {uploadedMedia.map((media, i) => (
+                    <div key={i} className="relative group">
+                      {media.mediaType === "image" ? (
+                        <img src={media.url} alt="" className="w-20 h-20 object-cover rounded-lg" />
+                      ) : (
+                        <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center text-2xl">🎥</div>
+                      )}
+                      <button
+                        onClick={() => setUploadedMedia((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        x
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Caption */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t("posts.scheduleDate")}
+                {t("posts.caption")}
+              </label>
+              <textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder={t("posts.captionPlaceholder")}
+                rows={4}
+                maxLength={2200}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"
+              />
+              <p className="text-xs text-gray-400 text-right">{caption.length}/2200</p>
+            </div>
+
+            {/* Hashtags */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t("posts.hashtags")}
               </label>
               <input
-                type="date"
-                value={scheduleDate}
-                onChange={(e) => setScheduleDate(e.target.value)}
+                type="text"
+                value={hashtags}
+                onChange={(e) => setHashtags(e.target.value)}
+                placeholder={t("posts.hashtagsPlaceholder")}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t("posts.scheduleTime")}
-              </label>
-              <input
-                type="time"
-                value={scheduleTime}
-                onChange={(e) => setScheduleTime(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              />
+
+            {/* Schedule */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t("posts.scheduleDate")}
+                </label>
+                <input
+                  type="date"
+                  value={scheduleDate}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t("posts.scheduleTime")}
+                </label>
+                <input
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(e) => setScheduleTime(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Submit */}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={handleSubmit}
+                disabled={createPost.isPending}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {scheduleDate && scheduleTime ? `Schedule Post` : `Save as Draft`}
+              </button>
+              <button
+                onClick={() => router.push("/calendar")}
+                className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+              >
+                {t("common.cancel")}
+              </button>
             </div>
           </div>
 
-          {/* Submit */}
-          <div className="flex gap-3">
-            <button
-              onClick={handleSubmit}
-              disabled={createPost.isPending}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {scheduleDate && scheduleTime
-                ? t("posts.scheduled")
-                : t("posts.draft")}
-            </button>
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-            >
-              {t("common.cancel")}
-            </button>
+          {/* Preview — right side */}
+          <div className="col-span-2">
+            <div className="bg-white rounded-xl border border-gray-200 p-6 sticky top-8">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+                Preview
+              </h3>
+
+              {/* Mock Instagram post */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center gap-2 p-3">
+                  <div className="w-8 h-8 rounded-full bg-gray-200" />
+                  <span className="text-sm font-semibold">
+                    {postTo === "account"
+                      ? accounts.data?.find((a) => a.id === accountId)?.username || "username"
+                      : groups.data?.find((g) => g.id === groupId)?.name || "group"}
+                  </span>
+                </div>
+
+                {/* Image placeholder */}
+                {uploadedMedia.length > 0 && uploadedMedia[0].mediaType === "image" ? (
+                  <img src={uploadedMedia[0].url} alt="" className="w-full aspect-square object-cover" />
+                ) : (
+                  <div className="w-full aspect-square bg-gray-100 flex items-center justify-center text-4xl text-gray-300">
+                    {mediaType === "reel" ? "🎬" : mediaType === "carousel" ? "🎠" : "🖼"}
+                  </div>
+                )}
+
+                {/* Caption */}
+                <div className="p-3">
+                  {caption ? (
+                    <p className="text-sm">
+                      <span className="font-semibold">
+                        {postTo === "account"
+                          ? accounts.data?.find((a) => a.id === accountId)?.username
+                          : "account"}
+                      </span>{" "}
+                      {caption}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-300 italic">Caption preview...</p>
+                  )}
+                  {hashtags && (
+                    <p className="text-sm text-blue-500 mt-1">{hashtags}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Schedule info */}
+              {scheduleDate && scheduleTime && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
+                  Scheduled for: {new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString()}
+                </div>
+              )}
+
+              {postTo === "group" && groupId && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+                  Will create {groups.data?.find((g) => g.id === groupId)?.memberCount || 0} posts (one per account in group)
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>
