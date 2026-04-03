@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 interface UploadedMedia {
   url: string;
+  s3Url: string;
   mediaType: "image" | "video";
   key: string;
 }
@@ -28,9 +29,7 @@ function NewPostContent() {
 
   const accounts = trpc.accounts.list.useQuery();
   const groups = trpc.groups.list.useQuery();
-  const createPost = trpc.posts.create.useMutation({
-    onSuccess: () => router.push("/calendar"),
-  });
+  const createPost = trpc.posts.create.useMutation();
   const uploadFromGDrive = trpc.media.uploadFromGoogleDrive.useMutation();
 
   const [postTo, setPostTo] = useState<"account" | "group">("account");
@@ -59,8 +58,9 @@ function NewPostContent() {
 
       setUploadedMedia((prev) => [
         ...prev,
-        ...data.uploads.map((u: { url: string; mediaType: string; key: string }) => ({
+        ...data.uploads.map((u: { url: string; s3Url: string; mediaType: string; key: string }) => ({
           url: u.url,
+          s3Url: u.s3Url,
           mediaType: u.mediaType as "image" | "video",
           key: u.key,
         })),
@@ -78,7 +78,7 @@ function NewPostContent() {
       const result = await uploadFromGDrive.mutateAsync({ driveUrl: gdriveUrl });
       setUploadedMedia((prev) => [
         ...prev,
-        { url: result.url, mediaType: result.mediaType as "image" | "video", key: result.key },
+        { url: result.url, s3Url: result.s3Url, mediaType: result.mediaType as "image" | "video", key: result.key },
       ]);
       setGdriveUrl("");
     } catch (error) {
@@ -86,7 +86,7 @@ function NewPostContent() {
     }
   }, [gdriveUrl, uploadFromGDrive]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (postTo === "account" && !accountId) return alert(t("posts.selectAccount"));
     if (postTo === "group" && !groupId) return alert(t("groups.selectGroup"));
     if (uploadedMedia.length === 0) return alert("Please add at least one media file");
@@ -98,6 +98,7 @@ function NewPostContent() {
 
     const media = uploadedMedia.map((m, i) => ({
       mediaUrl: m.url,
+      s3Url: m.s3Url,
       mediaType: m.mediaType,
       sortOrder: i,
     }));
@@ -108,7 +109,7 @@ function NewPostContent() {
       const group = groups.data?.find((g) => g.id === groupId);
       if (!group || group.accounts.length === 0) return alert("Group has no accounts");
 
-      Promise.all(
+      await Promise.all(
         group.accounts.map((acc) =>
           createPost.mutateAsync({
             accountId: acc.id,
@@ -121,9 +122,10 @@ function NewPostContent() {
             captionVariants: variants.length > 0 ? variants : undefined,
           })
         )
-      ).then(() => router.push("/calendar"));
+      );
+      router.push("/calendar");
     } else {
-      createPost.mutate({
+      await createPost.mutateAsync({
         accountId,
         caption,
         hashtags,
@@ -132,6 +134,7 @@ function NewPostContent() {
         media,
         captionVariants: variants.length > 0 ? variants : undefined,
       });
+      router.push("/calendar");
     }
   };
 

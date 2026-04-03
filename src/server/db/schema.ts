@@ -105,7 +105,8 @@ export const postMedia = pgTable("post_media", {
   postId: uuid("post_id")
     .references(() => posts.id, { onDelete: "cascade" })
     .notNull(),
-  mediaUrl: text("media_url").notNull(), // S3 public URL
+  mediaUrl: text("media_url").notNull(), // App-proxied URL for display
+  s3Url: text("s3_url"), // Direct S3 URL for Instagram API
   mediaType: mediaItemTypeEnum("media_type").notNull(),
   sortOrder: integer("sort_order").default(0).notNull(),
   altText: text("alt_text"),

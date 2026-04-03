@@ -86,6 +86,7 @@ export const postsRouter = router({
         media: z.array(
           z.object({
             mediaUrl: z.string().url(),
+            s3Url: z.string().optional(),
             mediaType: z.enum(["image", "video"]),
             sortOrder: z.number(),
             altText: z.string().optional(),
@@ -115,6 +116,7 @@ export const postsRouter = router({
           input.media.map((m) => ({
             postId: post.id,
             mediaUrl: m.mediaUrl,
+            s3Url: m.s3Url,
             mediaType: m.mediaType,
             sortOrder: m.sortOrder,
             altText: m.altText,
@@ -293,6 +295,7 @@ export const postsRouter = router({
           source.media.map((m) => ({
             postId: newPost.id,
             mediaUrl: m.mediaUrl,
+            s3Url: m.s3Url,
             mediaType: m.mediaType,
             sortOrder: m.sortOrder,
             altText: m.altText,

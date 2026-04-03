@@ -2,7 +2,7 @@ import { Worker, Job } from "bullmq";
 import IORedis from "ioredis";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import * as schema from "../db/schema";
 import * as igApi from "../lib/instagram-api";
 
@@ -63,7 +63,7 @@ async function processPublishJob(job: Job<PublishJobData>) {
       if (!media) throw new Error("No media attached to image post");
 
       const container = await igApi.createImageContainer(igUserId, token, {
-        imageUrl: media.mediaUrl,
+        imageUrl: media.s3Url || media.mediaUrl,
         caption: fullCaption,
         altText: media.altText ?? undefined,
       });
@@ -74,7 +74,7 @@ async function processPublishJob(job: Job<PublishJobData>) {
       if (!media) throw new Error("No media attached to reel post");
 
       const container = await igApi.createReelContainer(igUserId, token, {
-        videoUrl: media.mediaUrl,
+        videoUrl: media.s3Url || media.mediaUrl,
         caption: fullCaption,
       });
       containerId = container.id;
@@ -88,13 +88,13 @@ async function processPublishJob(job: Job<PublishJobData>) {
         let child: { id: string };
         if (media.mediaType === "video") {
           child = await igApi.createCarouselChildVideo(igUserId, token, {
-            videoUrl: media.mediaUrl,
+            videoUrl: media.s3Url || media.mediaUrl,
           });
           // Wait for each video child to process
           await igApi.waitForContainerReady(child.id, token);
         } else {
           child = await igApi.createCarouselChildImage(igUserId, token, {
-            imageUrl: media.mediaUrl,
+            imageUrl: media.s3Url || media.mediaUrl,
             altText: media.altText ?? undefined,
           });
         }
@@ -141,7 +141,7 @@ async function processPublishJob(job: Job<PublishJobData>) {
       .set({
         status: "failed",
         errorMessage,
-        retryCount: (post.retryCount ?? 0) + 1,
+        retryCount: sql`${schema.posts.retryCount} + 1`,
         updatedAt: new Date(),
       })
       .where(eq(schema.posts.id, postId));

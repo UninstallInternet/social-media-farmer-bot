@@ -43,7 +43,7 @@ async function graphFetch<T>(
     },
   });
 
-  const json = (await response.json()) as ApiResponse<T>;
+  const json = await response.json();
 
   if (json.error) {
     throw new Error(
@@ -51,6 +51,8 @@ async function graphFetch<T>(
     );
   }
 
+  // Graph API returns data directly at top level (e.g. { id: "123" })
+  // or nested under a "data" key for list endpoints
   return json as T;
 }
 
