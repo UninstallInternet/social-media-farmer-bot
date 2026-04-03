@@ -194,84 +194,102 @@ export default function ImportPage() {
           })}
         </div>
 
-        {/* Step 1: Schema explanation */}
+        {/* Step 1: Schema explanation — example table first */}
         {step === "schema" && (
           <div className="space-y-6">
+            {/* Example table — the first thing users see */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold mb-2">{t("import.schemaTitle")}</h2>
-              <p className="text-sm text-gray-500 mb-6">{t("import.schemaDescription")}</p>
+              <h2 className="text-lg font-semibold mb-2">Your CSV should look like this:</h2>
+              <p className="text-sm text-gray-500 mb-4">Each row is one post. Here are 3 example rows.</p>
 
-              {/* Required columns */}
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
-                  {t("import.requiredColumns")}
-                </h3>
-                <div className="grid gap-2">
-                  {REQUIRED_COLUMNS.map((col) => (
-                    <div key={col.name} className="flex items-start gap-4 p-3 bg-red-50 rounded-lg border border-red-100">
-                      <code className="text-sm font-mono font-bold text-red-700 min-w-[160px]">
-                        {col.name}
-                      </code>
-                      <span className="text-sm text-gray-600 flex-1">{col.description}</span>
-                      <code className="text-xs bg-white px-2 py-1 rounded text-gray-500 border">
-                        {col.example}
-                      </code>
-                    </div>
-                  ))}
-                </div>
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-left">
+                    <tr>
+                      <th className="px-3 py-2 font-mono text-xs text-gray-600">account_username</th>
+                      <th className="px-3 py-2 font-mono text-xs text-gray-600">caption</th>
+                      <th className="px-3 py-2 font-mono text-xs text-gray-600">hashtags</th>
+                      <th className="px-3 py-2 font-mono text-xs text-gray-600">media_type</th>
+                      <th className="px-3 py-2 font-mono text-xs text-gray-600">schedule_date</th>
+                      <th className="px-3 py-2 font-mono text-xs text-gray-600">schedule_time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    <tr>
+                      <td className="px-3 py-2">myaccount</td>
+                      <td className="px-3 py-2">Check this out!</td>
+                      <td className="px-3 py-2">#trending #new</td>
+                      <td className="px-3 py-2">image</td>
+                      <td className="px-3 py-2">2026-04-15</td>
+                      <td className="px-3 py-2">09:00</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2">myaccount</td>
+                      <td className="px-3 py-2">Behind the scenes</td>
+                      <td className="px-3 py-2">#bts</td>
+                      <td className="px-3 py-2">carousel</td>
+                      <td className="px-3 py-2">2026-04-15</td>
+                      <td className="px-3 py-2">17:00</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2">otheraccount</td>
+                      <td className="px-3 py-2">Tutorial time</td>
+                      <td className="px-3 py-2">#howto</td>
+                      <td className="px-3 py-2">reel</td>
+                      <td className="px-3 py-2">2026-04-16</td>
+                      <td className="px-3 py-2">12:00</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
-              {/* Optional columns */}
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                  {t("import.optionalColumns")}
-                </h3>
-                <div className="grid gap-2">
-                  {OPTIONAL_COLUMNS.map((col) => (
-                    <div key={col.name} className="flex items-start gap-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                      <code className="text-sm font-mono font-bold text-gray-700 min-w-[160px]">
-                        {col.name}
-                      </code>
-                      <span className="text-sm text-gray-600 flex-1">{col.description}</span>
-                      <code className="text-xs bg-white px-2 py-1 rounded text-gray-500 border">
-                        {col.example}
-                      </code>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Example CSV preview */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                  {t("import.exampleRow")}
-                </h3>
-                <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-                  <pre className="text-sm text-green-400 font-mono">
-{`account_username,caption,hashtags,media_files,media_type,schedule_date,schedule_time,alt_text
-myaccount,"Check out our latest!","#trending #new",photo1.jpg,image,2026-04-15,09:00,Product photo
-myaccount,"Behind the scenes","#bts",img1.jpg;img2.jpg;img3.jpg,carousel,2026-04-15,17:00,
-otheraccount,"Tutorial time","#howto",video.mp4,reel,2026-04-16,12:00,Tutorial video`}
-                  </pre>
-                </div>
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => setStep("upload")}
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                >
+                  Got it — Upload File
+                </button>
+                <a
+                  href="/templates/import-template.csv"
+                  download
+                  className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
+                >
+                  {t("import.downloadTemplate")}
+                </a>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setStep("upload")}
-                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-              >
-                {t("common.next")}: Upload File
-              </button>
-              <a
-                href="/templates/import-template.csv"
-                download
-                className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
-              >
-                {t("import.downloadTemplate")}
-              </a>
-            </div>
+            {/* Column reference — below the example */}
+            <details className="bg-white rounded-xl border border-gray-200">
+              <summary className="p-4 cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+                Column reference (click to expand)
+              </summary>
+              <div className="px-6 pb-6 space-y-4">
+                <div>
+                  <h3 className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Required</h3>
+                  <div className="grid gap-1">
+                    {REQUIRED_COLUMNS.map((col) => (
+                      <div key={col.name} className="flex gap-3 text-sm">
+                        <code className="font-mono text-red-700 min-w-[140px]">{col.name}</code>
+                        <span className="text-gray-500">{col.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Optional</h3>
+                  <div className="grid gap-1">
+                    {OPTIONAL_COLUMNS.map((col) => (
+                      <div key={col.name} className="flex gap-3 text-sm">
+                        <code className="font-mono text-gray-600 min-w-[140px]">{col.name}</code>
+                        <span className="text-gray-500">{col.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </details>
           </div>
         )}
 

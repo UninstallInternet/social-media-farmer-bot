@@ -3,7 +3,7 @@ import { router, publicProcedure } from "../lib/trpc";
 import { db } from "../db";
 import { accounts, posts } from "../db/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
-import { encrypt, decrypt } from "../lib/encryption";
+import { encrypt } from "../lib/encryption";
 
 export const accountsRouter = router({
   list: publicProcedure.query(async () => {
@@ -114,5 +114,53 @@ export const accountsRouter = router({
     .mutation(async ({ input }) => {
       await db.delete(accounts).where(eq(accounts.id, input.id));
       return { success: true };
+    }),
+
+  // Manually add an account with a token
+  addManual: publicProcedure
+    .input(
+      z.object({
+        username: z.string().min(1),
+        instagramUserId: z.string().min(1),
+        facebookPageId: z.string().min(1),
+        accessToken: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      // Check if account already exists
+      const existing = await db.query.accounts.findFirst({
+        where: eq(accounts.instagramUserId, input.instagramUserId),
+      });
+
+      const encryptedToken = encrypt(input.accessToken);
+      // Default to 60 days from now (long-lived token duration)
+      const tokenExpiry = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+
+      if (existing) {
+        await db
+          .update(accounts)
+          .set({
+            username: input.username,
+            accessToken: encryptedToken,
+            tokenExpiresAt: tokenExpiry,
+            facebookPageId: input.facebookPageId,
+            updatedAt: new Date(),
+          })
+          .where(eq(accounts.id, existing.id));
+        return { id: existing.id, updated: true };
+      }
+
+      const [account] = await db
+        .insert(accounts)
+        .values({
+          instagramUserId: input.instagramUserId,
+          username: input.username,
+          accessToken: encryptedToken,
+          tokenExpiresAt: tokenExpiry,
+          facebookPageId: input.facebookPageId,
+        })
+        .returning();
+
+      return { id: account.id, updated: false };
     }),
 });

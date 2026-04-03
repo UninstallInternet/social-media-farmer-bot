@@ -35,7 +35,8 @@ const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
 
 export interface UploadResult {
   key: string;
-  url: string;
+  url: string;      // App-proxied URL for display in browser
+  s3Url: string;    // Direct S3 URL for Instagram API
   mediaType: "image" | "video";
 }
 
@@ -85,9 +86,12 @@ export async function uploadMedia(
     })
   );
 
+  // Return app-proxied URL for display, and direct S3 URL for Instagram API
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   return {
     key,
-    url: `${PUBLIC_URL}/${key}`,
+    url: `${appUrl}/api/media/${key}`,
+    s3Url: `${PUBLIC_URL}/${key}`,
     mediaType: validation.mediaType!,
   };
 }
