@@ -1,0 +1,4 @@
+account_username,caption,hashtags,media_files,media_type,schedule_date,schedule_time,alt_text
+account1,"Check out our latest post!","#trending #viral",photo1.jpg,image,2026-04-10,09:00,Descriptive alt text
+account1,"Behind the scenes","#bts #team",img1.jpg;img2.jpg;img3.jpg,carousel,2026-04-10,17:00,
+account2,"Tutorial video","#tutorial #howto",tutorial.mp4,reel,2026-04-11,12:00,Tutorial walkthrough
