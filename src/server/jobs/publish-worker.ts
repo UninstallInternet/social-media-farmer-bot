@@ -25,6 +25,7 @@ async function processPublishJob(job: Job<PublishJobData>) {
     where: eq(schema.posts.id, postId),
     with: {
       media: { orderBy: (m, { asc }) => [asc(m.sortOrder)] },
+      captionVariants: true,
       account: true,
     },
   });
@@ -43,7 +44,13 @@ async function processPublishJob(job: Job<PublishJobData>) {
     .set({ status: "publishing", updatedAt: new Date() })
     .where(eq(schema.posts.id, postId));
 
-  const fullCaption = [post.caption, post.hashtags].filter(Boolean).join("\n\n");
+  // Pick a random caption variant if available, otherwise use the main caption
+  let captionText = post.caption;
+  if (post.captionVariants && post.captionVariants.length > 0) {
+    const randomIdx = Math.floor(Math.random() * post.captionVariants.length);
+    captionText = post.captionVariants[randomIdx].caption;
+  }
+  const fullCaption = [captionText, post.hashtags].filter(Boolean).join("\n\n");
   const igUserId = post.account.instagramUserId;
   const token = post.account.accessToken;
 

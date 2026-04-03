@@ -124,6 +124,9 @@ type TranslationKeys = {
   "templates.defaultHashtags": string;
   "templates.noTemplates": string;
 
+  // Gallery
+  "gallery.title": string;
+
   // Groups
   "groups.title": string;
   "groups.createGroup": string;
@@ -274,6 +277,8 @@ const translations: Record<Locale, TranslationKeys> = {
     "templates.defaultHashtags": "Default Hashtags",
     "templates.noTemplates": "No templates yet. Create your first template.",
 
+    "gallery.title": "Gallery",
+
     "groups.title": "Groups",
     "groups.createGroup": "Create Group",
     "groups.name": "Group Name",
@@ -418,6 +423,8 @@ const translations: Record<Locale, TranslationKeys> = {
     "templates.captionTemplate": "Plantilla de Descripcion",
     "templates.defaultHashtags": "Hashtags Predeterminados",
     "templates.noTemplates": "No hay plantillas. Crea tu primera plantilla.",
+
+    "gallery.title": "Galeria",
 
     "groups.title": "Grupos",
     "groups.createGroup": "Crear Grupo",

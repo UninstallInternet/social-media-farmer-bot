@@ -42,6 +42,8 @@ function NewPostContent() {
   const [scheduleDate, setScheduleDate] = useState(prefillDate);
   const [scheduleTime, setScheduleTime] = useState("");
   const [uploadedMedia, setUploadedMedia] = useState<UploadedMedia[]>([]);
+  const [captionVariants, setCaptionVariants] = useState<string[]>([]);
+  const [showVariants, setShowVariants] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [gdriveUrl, setGdriveUrl] = useState("");
 
@@ -100,12 +102,12 @@ function NewPostContent() {
       sortOrder: i,
     }));
 
+    const variants = captionVariants.filter((v) => v.trim());
+
     if (postTo === "group" && groupId) {
-      // Post to all accounts in the group
       const group = groups.data?.find((g) => g.id === groupId);
       if (!group || group.accounts.length === 0) return alert("Group has no accounts");
 
-      // Create a post for each account in the group
       Promise.all(
         group.accounts.map((acc) =>
           createPost.mutateAsync({
@@ -116,6 +118,7 @@ function NewPostContent() {
             scheduledAt,
             groupId,
             media,
+            captionVariants: variants.length > 0 ? variants : undefined,
           })
         )
       ).then(() => router.push("/calendar"));
@@ -127,6 +130,7 @@ function NewPostContent() {
         mediaType,
         scheduledAt,
         media,
+        captionVariants: variants.length > 0 ? variants : undefined,
       });
     }
   };
@@ -306,6 +310,9 @@ function NewPostContent() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t("posts.caption")}
               </label>
+              <p className="text-xs text-gray-400 mb-1">
+                Main caption text. Max 2200 characters. Hashtags go in the separate field below.
+              </p>
               <textarea
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
@@ -315,6 +322,51 @@ function NewPostContent() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"
               />
               <p className="text-xs text-gray-400 text-right">{caption.length}/2200</p>
+
+              {/* Caption Variants toggle */}
+              <button
+                type="button"
+                onClick={() => setShowVariants(!showVariants)}
+                className="mt-2 text-xs text-purple-600 hover:text-purple-800 font-medium"
+              >
+                {showVariants ? "- Hide caption variants" : "+ Add caption variants (randomize per account)"}
+              </button>
+
+              {showVariants && (
+                <div className="mt-3 space-y-2 p-3 bg-purple-50 rounded-lg border border-purple-100">
+                  <p className="text-xs text-purple-700">
+                    Add multiple caption options. When posting to a group, each account will get a random caption from this list instead of the main caption above.
+                  </p>
+                  {captionVariants.map((v, i) => (
+                    <div key={i} className="flex gap-2">
+                      <textarea
+                        value={v}
+                        onChange={(e) => {
+                          const next = [...captionVariants];
+                          next[i] = e.target.value;
+                          setCaptionVariants(next);
+                        }}
+                        rows={2}
+                        maxLength={2200}
+                        placeholder={`Caption variant ${i + 1}`}
+                        className="flex-1 border border-purple-200 rounded-lg px-3 py-2 text-sm resize-none bg-white"
+                      />
+                      <button
+                        onClick={() => setCaptionVariants((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="text-red-400 hover:text-red-600 text-sm px-2"
+                      >
+                        x
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setCaptionVariants((prev) => [...prev, ""])}
+                    className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                  >
+                    + Add another variant
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Hashtags */}
@@ -322,6 +374,9 @@ function NewPostContent() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t("posts.hashtags")}
               </label>
+              <p className="text-xs text-gray-400 mb-1">
+                Space-separated hashtags, e.g. #fashion #style. Max 30 hashtags. Appended after caption.
+              </p>
               <input
                 type="text"
                 value={hashtags}
@@ -337,6 +392,7 @@ function NewPostContent() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t("posts.scheduleDate")}
                 </label>
+                <p className="text-xs text-gray-400 mb-1">YYYY-MM-DD</p>
                 <input
                   type="date"
                   value={scheduleDate}
@@ -348,6 +404,7 @@ function NewPostContent() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t("posts.scheduleTime")}
                 </label>
+                <p className="text-xs text-gray-400 mb-1">24h format, e.g. 14:30</p>
                 <input
                   type="time"
                   value={scheduleTime}

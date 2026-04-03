@@ -16,6 +16,7 @@ const navSections: { label?: string; items: { href: string; labelKey: string; ic
     label: "Content",
     items: [
       { href: "/posts/new", labelKey: "nav.newPost", icon: "➕" },
+      { href: "/gallery", labelKey: "gallery.title", icon: "🖼" },
       { href: "/import", labelKey: "nav.import", icon: "📥" },
       { href: "/templates", labelKey: "nav.templates", icon: "📋" },
     ],

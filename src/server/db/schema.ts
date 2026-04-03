@@ -90,6 +90,16 @@ export const posts = pgTable("posts", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Caption variants — multiple caption options per post, one picked randomly per account
+export const captionVariants = pgTable("caption_variants", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  postId: uuid("post_id")
+    .references(() => posts.id, { onDelete: "cascade" })
+    .notNull(),
+  caption: text("caption").notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+});
+
 export const postMedia = pgTable("post_media", {
   id: uuid("id").primaryKey().defaultRandom(),
   postId: uuid("post_id")
@@ -176,6 +186,7 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     references: [accounts.id],
   }),
   media: many(postMedia),
+  captionVariants: many(captionVariants),
   batch: one(batches, {
     fields: [posts.batchId],
     references: [batches.id],
@@ -183,6 +194,13 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   group: one(groups, {
     fields: [posts.groupId],
     references: [groups.id],
+  }),
+}));
+
+export const captionVariantsRelations = relations(captionVariants, ({ one }) => ({
+  post: one(posts, {
+    fields: [captionVariants.postId],
+    references: [posts.id],
   }),
 }));
 
@@ -214,3 +232,4 @@ export type Template = typeof templates.$inferSelect;
 export type Batch = typeof batches.$inferSelect;
 export type Group = typeof groups.$inferSelect;
 export type GroupMember = typeof groupMembers.$inferSelect;
+export type CaptionVariant = typeof captionVariants.$inferSelect;

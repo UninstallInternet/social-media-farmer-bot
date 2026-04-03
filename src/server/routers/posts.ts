@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, publicProcedure } from "../lib/trpc";
 import { db } from "../db";
-import { posts, postMedia } from "../db/schema";
+import { posts, postMedia, captionVariants } from "../db/schema";
 import { eq, and, gte, lte, desc, inArray, sql } from "drizzle-orm";
 import { publishQueue } from "../jobs/queue";
 
@@ -40,6 +40,7 @@ export const postsRouter = router({
         where,
         with: {
           media: { orderBy: (m, { asc }) => [asc(m.sortOrder)] },
+          captionVariants: { orderBy: (c, { asc }) => [asc(c.sortOrder)] },
           account: {
             columns: { id: true, username: true, profilePicUrl: true },
           },
@@ -67,6 +68,7 @@ export const postsRouter = router({
         where: eq(posts.id, input.id),
         with: {
           media: { orderBy: (m, { asc }) => [asc(m.sortOrder)] },
+          captionVariants: { orderBy: (c, { asc }) => [asc(c.sortOrder)] },
           account: true,
         },
       });
@@ -89,6 +91,7 @@ export const postsRouter = router({
             altText: z.string().optional(),
           })
         ),
+        captionVariants: z.array(z.string().max(2200)).optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -115,6 +118,16 @@ export const postsRouter = router({
             mediaType: m.mediaType,
             sortOrder: m.sortOrder,
             altText: m.altText,
+          }))
+        );
+      }
+
+      if (input.captionVariants && input.captionVariants.length > 0) {
+        await db.insert(captionVariants).values(
+          input.captionVariants.map((cap, i) => ({
+            postId: post.id,
+            caption: cap,
+            sortOrder: i,
           }))
         );
       }
@@ -203,6 +216,102 @@ export const postsRouter = router({
         }
       }
       return { success: true };
+    }),
+
+  // Gallery: all posts with media, for browsing/reusing content
+  gallery: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        offset: z.number().min(0).default(0),
+        search: z.string().optional(),
+      })
+    )
+    .query(async ({ input }) => {
+      const results = await db.query.posts.findMany({
+        with: {
+          media: { orderBy: (m, { asc }) => [asc(m.sortOrder)] },
+          captionVariants: { orderBy: (c, { asc }) => [asc(c.sortOrder)] },
+          account: {
+            columns: { id: true, username: true, profilePicUrl: true },
+          },
+        },
+        orderBy: [desc(posts.createdAt)],
+        limit: input.limit,
+        offset: input.offset,
+      });
+
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(posts);
+
+      return {
+        posts: results,
+        total: Number(countResult[0]?.count ?? 0),
+      };
+    }),
+
+  // Clone: duplicate a post (for reusing content on different accounts/dates)
+  clone: publicProcedure
+    .input(
+      z.object({
+        sourcePostId: z.string().uuid(),
+        accountId: z.string().uuid(),
+        scheduledAt: z.string().datetime().optional(),
+        groupId: z.string().uuid().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const source = await db.query.posts.findFirst({
+        where: eq(posts.id, input.sourcePostId),
+        with: {
+          media: { orderBy: (m, { asc }) => [asc(m.sortOrder)] },
+          captionVariants: { orderBy: (c, { asc }) => [asc(c.sortOrder)] },
+        },
+      });
+
+      if (!source) throw new Error("Source post not found");
+
+      const status = input.scheduledAt ? "scheduled" : "draft";
+
+      const [newPost] = await db
+        .insert(posts)
+        .values({
+          accountId: input.accountId,
+          groupId: input.groupId,
+          caption: source.caption,
+          hashtags: source.hashtags,
+          mediaType: source.mediaType,
+          status,
+          scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
+        })
+        .returning();
+
+      // Clone media
+      if (source.media.length > 0) {
+        await db.insert(postMedia).values(
+          source.media.map((m) => ({
+            postId: newPost.id,
+            mediaUrl: m.mediaUrl,
+            mediaType: m.mediaType,
+            sortOrder: m.sortOrder,
+            altText: m.altText,
+          }))
+        );
+      }
+
+      // Clone caption variants
+      if (source.captionVariants.length > 0) {
+        await db.insert(captionVariants).values(
+          source.captionVariants.map((v) => ({
+            postId: newPost.id,
+            caption: v.caption,
+            sortOrder: v.sortOrder,
+          }))
+        );
+      }
+
+      return newPost;
     }),
 
   stats: publicProcedure.query(async () => {
