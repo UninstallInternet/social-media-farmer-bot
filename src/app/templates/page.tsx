@@ -32,7 +32,7 @@ export default function TemplatesPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8 max-w-3xl">
+      <main className="flex-1 p-4 pt-16 lg:p-8 lg:pt-8 max-w-3xl">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">{t("templates.title")}</h1>
           <button

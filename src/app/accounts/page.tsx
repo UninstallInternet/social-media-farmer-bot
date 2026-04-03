@@ -52,7 +52,7 @@ function AccountsContent() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8 max-w-4xl">
+      <main className="flex-1 p-4 pt-16 lg:p-8 lg:pt-8 max-w-4xl">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">{t("accounts.title")}</h1>
           <button
@@ -223,7 +223,7 @@ function AccountsContent() {
             <p className="text-gray-500">{t("accounts.noAccounts")}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {accounts.data?.map((account) => (
               <div key={account.id} className="bg-white rounded-xl border border-gray-200 p-5">
                 <div className="flex items-start justify-between">

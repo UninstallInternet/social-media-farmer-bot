@@ -141,12 +141,12 @@ function NewPostContent() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 pt-16 lg:p-8 lg:pt-8">
         <h1 className="text-2xl font-bold mb-6">{t("posts.createPost")}</h1>
 
-        <div className="grid grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Form — left side */}
-          <div className="col-span-3 space-y-5 bg-white rounded-xl border border-gray-200 p-6">
+          <div className="lg:col-span-3 space-y-5 bg-white rounded-xl border border-gray-200 p-6">
             {/* Post to: Account or Group */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -436,7 +436,7 @@ function NewPostContent() {
           </div>
 
           {/* Preview — right side */}
-          <div className="col-span-2">
+          <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-gray-200 p-6 sticky top-8">
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
                 Preview

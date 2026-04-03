@@ -31,11 +31,11 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 pt-16 lg:p-8 lg:pt-8">
         <h1 className="text-2xl font-bold mb-6">{t("dashboard.title")}</h1>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
             label={t("dashboard.scheduledToday")}
             value={stats.data?.scheduledToday ?? 0}
@@ -58,9 +58,9 @@ export default function DashboardPage() {
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Posts */}
-          <div className="col-span-2 bg-white rounded-xl border border-gray-200 p-6">
+          <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-semibold mb-4">
               {t("dashboard.recentPosts")}
             </h2>

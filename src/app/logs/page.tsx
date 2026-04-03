@@ -21,7 +21,7 @@ export default function LogsPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 pt-16 lg:p-8 lg:pt-8 overflow-x-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Job Logs</h1>

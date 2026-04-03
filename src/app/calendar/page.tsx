@@ -127,7 +127,7 @@ export default function CalendarPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 pt-16 lg:p-8 lg:pt-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">{t("calendar.title")}</h1>
@@ -154,9 +154,9 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Calendar grid */}
-          <div className="col-span-2 bg-white rounded-xl border border-gray-200 p-6">
+          <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
             {/* Month navigation */}
             <div className="flex items-center justify-between mb-4">
               <button onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">

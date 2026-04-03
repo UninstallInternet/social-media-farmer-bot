@@ -69,7 +69,7 @@ export default function GalleryPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 pt-16 lg:p-8 lg:pt-8">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Content Gallery</h1>
@@ -86,7 +86,7 @@ export default function GalleryPage() {
             <p className="text-gray-500">{t("common.noResults")}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {gallery.data?.posts.map((post) => {
               const thumbnail = post.media[0];
               const hasVariants = (post.captionVariants?.length ?? 0) > 0;
