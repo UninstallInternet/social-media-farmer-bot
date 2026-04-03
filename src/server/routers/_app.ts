@@ -4,6 +4,7 @@ import { postsRouter } from "./posts";
 import { mediaRouter } from "./media";
 import { templatesRouter } from "./templates";
 import { groupsRouter } from "./groups";
+import { logsRouter } from "./logs";
 
 export const appRouter = router({
   accounts: accountsRouter,
@@ -11,6 +12,7 @@ export const appRouter = router({
   media: mediaRouter,
   templates: templatesRouter,
   groups: groupsRouter,
+  logs: logsRouter,
 });
 
 export type AppRouter = typeof appRouter;

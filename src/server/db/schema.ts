@@ -159,6 +159,18 @@ export const tokenRefreshLog = pgTable("token_refresh_log", {
   errorMessage: text("error_message"),
 });
 
+// Job execution logs
+export const jobLogs = pgTable("job_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  postId: uuid("post_id").references(() => posts.id, { onDelete: "set null" }),
+  accountUsername: text("account_username"),
+  action: text("action").notNull(), // "publish", "token_refresh", "schedule"
+  status: text("status").notNull(), // "success", "failed", "started"
+  message: text("message"),
+  details: text("details"), // JSON string with extra info
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 // Relations
 export const groupsRelations = relations(groups, ({ many }) => ({
   members: many(groupMembers),

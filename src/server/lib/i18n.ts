@@ -126,6 +126,7 @@ type TranslationKeys = {
 
   // Gallery
   "gallery.title": string;
+  "logs.title": string;
 
   // Groups
   "groups.title": string;
@@ -278,6 +279,7 @@ const translations: Record<Locale, TranslationKeys> = {
     "templates.noTemplates": "No templates yet. Create your first template.",
 
     "gallery.title": "Gallery",
+    "logs.title": "Logs",
 
     "groups.title": "Groups",
     "groups.createGroup": "Create Group",
@@ -425,6 +427,7 @@ const translations: Record<Locale, TranslationKeys> = {
     "templates.noTemplates": "No hay plantillas. Crea tu primera plantilla.",
 
     "gallery.title": "Galeria",
+    "logs.title": "Registros",
 
     "groups.title": "Grupos",
     "groups.createGroup": "Crear Grupo",

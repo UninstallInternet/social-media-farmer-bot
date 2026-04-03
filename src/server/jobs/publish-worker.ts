@@ -117,6 +117,15 @@ async function processPublishJob(job: Job<PublishJobData>) {
       throw new Error(`Unknown media type: ${post.mediaType}`);
     }
 
+    // Log start
+    await db.insert(schema.jobLogs).values({
+      postId,
+      accountUsername: post.account.username,
+      action: "publish",
+      status: "started",
+      message: `Publishing ${post.mediaType} to @${post.account.username}`,
+    });
+
     // Publish
     const result = await igApi.publishMedia(igUserId, token, containerId);
 
@@ -132,6 +141,15 @@ async function processPublishJob(job: Job<PublishJobData>) {
       })
       .where(eq(schema.posts.id, postId));
 
+    // Log success
+    await db.insert(schema.jobLogs).values({
+      postId,
+      accountUsername: post.account.username,
+      action: "publish",
+      status: "success",
+      message: `Published successfully. Media ID: ${result.id}`,
+    });
+
     return { success: true, mediaId: result.id };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -146,7 +164,17 @@ async function processPublishJob(job: Job<PublishJobData>) {
       })
       .where(eq(schema.posts.id, postId));
 
-    throw error; // Re-throw for BullMQ retry logic
+    // Log failure
+    await db.insert(schema.jobLogs).values({
+      postId,
+      accountUsername: post.account.username,
+      action: "publish",
+      status: "failed",
+      message: errorMessage,
+      details: error instanceof Error ? error.stack : undefined,
+    });
+
+    throw error;
   }
 }
 

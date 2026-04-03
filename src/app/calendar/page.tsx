@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/ui/Sidebar";
 import { useI18n } from "@/lib/i18n-context";
 import { trpc } from "@/lib/trpc-client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-gray-200 border-gray-300 text-gray-700",
@@ -74,7 +75,14 @@ export default function CalendarPage() {
     offset: 0,
   });
 
+  const router = useRouter();
   const groups = trpc.groups.list.useQuery();
+  const utils = trpc.useUtils();
+  const deletePost = trpc.posts.delete.useMutation({
+    onSuccess: () => {
+      utils.posts.list.invalidate();
+    },
+  });
 
   const weeks = useMemo(() => getMonthGrid(year, month), [year, month]);
 
@@ -262,10 +270,9 @@ export default function CalendarPage() {
                 ) : (
                   <div className="space-y-3">
                     {selectedDayPosts.map((post) => (
-                      <Link
+                      <div
                         key={post.id}
-                        href={`/posts/${post.id}`}
-                        className="block p-3 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors"
+                        className="p-3 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors"
                       >
                         <div className="flex items-center gap-2 mb-1">
                           {post.account?.profilePicUrl ? (
@@ -293,7 +300,24 @@ export default function CalendarPage() {
                             className="mt-2 w-full h-24 object-cover rounded"
                           />
                         )}
-                      </Link>
+                        <div className="flex gap-2 mt-2 pt-2 border-t border-gray-50">
+                          {post.errorMessage && (
+                            <p className="text-xs text-red-500 flex-1 truncate" title={post.errorMessage}>
+                              {post.errorMessage}
+                            </p>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (confirm("Delete this post?")) {
+                                deletePost.mutate({ id: post.id });
+                              }
+                            }}
+                            className="text-xs text-red-500 hover:text-red-700 font-medium ml-auto"
+                          >
+                            {t("common.delete")}
+                          </button>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}

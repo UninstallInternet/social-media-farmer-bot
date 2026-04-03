@@ -26,6 +26,7 @@ const navSections: { label?: string; items: { href: string; labelKey: string; ic
     items: [
       { href: "/groups", labelKey: "groups.title", icon: "📁" },
       { href: "/accounts", labelKey: "nav.accounts", icon: "👤" },
+      { href: "/logs", labelKey: "logs.title", icon: "📜" },
     ],
   },
 ];
